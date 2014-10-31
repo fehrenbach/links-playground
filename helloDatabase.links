@@ -1,0 +1,35 @@
+var db = database "linksHelloWorldDB" "postgresql" "localhost:5432:stefan:links";
+
+var hellos = table "test" with (test : String, id : Int) from db;
+
+#asList(hellos);
+
+
+fun maximum(result, l) {
+  switch (l) {
+    case [] -> result
+    case hd::tl -> if (result >= hd)  
+                       maximum(result, tl)
+                   else
+                       maximum(hd, tl)
+  }
+}
+
+
+
+fun run() {
+  var ids = map((.id),
+                for (p <-- hellos)
+                  [(id=p.id)]);
+  var maxid = maximum(0, ids);
+  var nextid = maxid + 1;
+  insert hellos values ("id", "test") [(id=nextid,test="Hello from Links ")];
+}
+
+#asList(hellos);
+
+# So, that kinda works.
+# I don't know how to run links programs, so just copy and paste this stuff into the REPL.
+# Use the shredding branch, install all the database stuff (see INSTALL)
+# Run links with: ./links --config=links-config
+
