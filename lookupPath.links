@@ -41,6 +41,24 @@ fun lookupPath(path) server {
 
 lookupPath(["abc", "def", "ghi"])
 
+## Attempt at doing the lookup in forward direction, not from the end.
+## Doesn't work, because we can't use pattern matching "on the database".
+## There should be a way around this, but I don't see it right now.
+#
+# fun lookupF(path, context) {
+#   switch (path) {
+#     case [] -> [context.row]
+#     case label::path -> for (b <-- bindings)
+#                         where (b.row == context.row && b.name == label)
+#                           lookupF(path, (row=b.child))
+#   }
+# }
+
+# query { for (root <-- bindings)
+#         where (root.row == 0)
+#           lookupF(["a", "b"], row=root.id) }
+
+
 # Generated query for
 # lookupPath(["abc", "def"])
 # SELECT t1662."id" AS "binding",
