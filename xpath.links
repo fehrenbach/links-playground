@@ -91,11 +91,27 @@ var xp3 = Seq(Axis(DescendantOrSelf),
                              Seq(Axis(Rev(Following)),
                                  Name("b"))))));
 
-var cf = path(Axis(Child), fun (x) { [x] });
+var cf = path(Axis(Child), fun (x) {[x]});
 
-var cf0 = path(xp2, fun (x) {[x]});
+var cf0 = path(xp3, fun (x) {[x]});
 
 
 query { for (r <-- xml)
         where (r.id == 0)
          cf0(r) }
+
+
+# select (result."id") as "id",(result."name") as "name",(result."parent") as "parent",(result."post") as "post",(result."pre") as "pre"
+#   from xml as root,
+#        xml as result,
+#        xml as filterbranch
+#  where root."id" = 0
+#    and root."pre" <= result."pre"
+#    and result."post" <= root."post"
+#    and result."name" = 'f'
+#    and filterbranch."id" = result."id"
+#    and exists (select 0 as dummy
+#                  from xml as t1752,
+#                       xml as t1753
+# --                      , xml as t1746 -- this line is missing for some reason...
+#                 where t1746."pre" <= filterbranch."pre" and filterbranch."post" <= t1746."post" and t1753."post" < t1746."pre" and t1753."name" = 'b')
