@@ -66,11 +66,11 @@ fun path(p, k) {
        if (p.name == s) k(p) else []
     }
     case Filter(f) ->
-      var k_f = path(f, k);
+      var k_f = path(f, fun (x) {[x]});
       fun (c) {
         for (x <-- xml)
-        where (x.id == c.id)
-          k_f(x)
+        where (x.id == c.id && not(empty(k_f(x))))
+          k(c)
       }
   }
 }
@@ -98,4 +98,4 @@ var cf0 = path(xp2, fun (x) {[x]});
 
 query { for (r <-- xml)
         where (r.id == 0)
-        cf0(r) }
+         cf0(r) }
