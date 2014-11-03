@@ -27,7 +27,7 @@ typename Axis = [| Self
 typename Path = [| Axis:Axis
                  | Seq:(Path, Path)
                  | Name:String
-                 #| Filter:Path
+                 | Filter:Path
                  |];
 
 typename XML = (id:Int,name:String,parent:Int,post:Int,pre:Int);
@@ -65,6 +65,13 @@ fun path(p, k) {
     case Name(s) -> fun (p) {
        if (p.name == s) k(p) else []
     }
+    case Filter(f) ->
+      var k_f = path(f, k);
+      fun (c) {
+        for (x <-- xml)
+        where (x.id == c.id)
+          k_f(x)
+      }
   }
 }
 
@@ -76,11 +83,19 @@ var xp7 = Seq(Axis(Child), Seq(Axis(Child), Axis(Child)));
 var gce = Seq(Axis(Child), Seq(Axis(Child), Seq(Axis(Child), Name("e"))));
 
 var xp0 = Seq(Axis(Child), Axis(Child));
+var xp1 = Seq(Axis(DescendantOrSelf), Axis(Rev(Child)));
+var xp2 = Seq(Axis(DescendantOrSelf), Filter(Seq(Axis(FollowingSibling), Name("d"))));
+var xp3 = Seq(Axis(DescendantOrSelf),
+              Seq(Name("f"),
+                  Filter(Seq(Axis(Rev(DescendantOrSelf)),
+                             Seq(Axis(Rev(Following)),
+                                 Name("b"))))));
 
 var cf = path(Axis(Child), fun (x) { [x] });
 
-var cf0 = path(crc, fun (x) {[x]});
+var cf0 = path(xp2, fun (x) {[x]});
+
 
 query { for (r <-- xml)
-        where (r.id == 2)
+        where (r.id == 0)
         cf0(r) }
