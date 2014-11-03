@@ -26,7 +26,7 @@ typename Axis = [| Self
 
 typename Path = [| Axis:Axis
                  | Seq:(Path, Path)
-                 #| Name:String
+                 | Name:String
                  #| Filter:Path
                  |];
 
@@ -60,16 +60,21 @@ fun path(p, k) {
       where (axis(ax, p, c))
         k(c)
     }
+    case Name(s) -> fun (p) {
+       if (p.name == s) k(p) else []
+    }
   }
 }
 
 var xp7 = Seq(Axis(Child), Seq(Axis(Child), Axis(Child)));
 
+var gce = Seq(Axis(Child), Seq(Axis(Child), Seq(Axis(Child), Name("e"))));
+
 var xp0 = Seq(Axis(Child), Axis(Child));
 
 var cf = path(Axis(Child), fun (x) { [x] });
 
-var cf0 = path(xp7, fun (x) {[x]});
+var cf0 = path(gce, fun (x) {[x]});
 
 query { for (r <-- xml)
         where (r.parent == -1)
