@@ -1,0 +1,67 @@
+# Links port of the XPath code from
+#
+#   A Practical Theory of Language-Integrated Query
+#   James Cheney, Sam Lindley, Philip Wadler
+#   at ICFP'13
+
+var db = database "stefan";
+
+var xml = table ("xml") with
+    (id : Int,
+     parent : Int,
+     name : String,
+     pre : Int,
+     post : Int) from db;
+
+#typename QueryBuilder = ((pre: Int, post: Int)) {}-> [(|a::(Any,Base))];
+
+typename Axis = [| Self
+                 | Child
+                 | Descendant
+                 | DescendantOrSelf
+                 | Following
+                 | FollowingSibling
+#                 | Rev:Axis # Can't do this easily because recursion is wild, even though in this case it should be very easy.
+                 |];
+
+typename Path = [| 
+                   Axis:Axis
+                 #| Seq:(Path, Path)
+                 #| Name:String
+                 #| Filter:Path
+                 |];
+
+typename QB = ((id:Int,name:String,parent:Int,post:Int,pre:Int)) {}-> [(id:Int,name:String,parent:Int,post:Int,pre:Int)];
+
+fun axis(ax, s, t) {
+  switch (ax) {
+    case Self -> s.id == t.id
+    case Child -> s.id == t.parent
+    case Descendant -> s.pre < t.pre && t.post < s.post
+    case DescendantOrSelf -> s.pre <= t.pre && t.post <= s.post
+    case Following -> s.post < t.pre
+    case FollowingSibling -> s.post < t.pre && s.parent == t.parent
+#    case Rev(ax) -> axis(ax, t, s)
+  }
+}
+
+#sig path : (Path, QueryBuilder) ~> QueryBuilder
+sig path : (Path, QB) -> QB
+fun path(path, k) {
+  switch (path) {
+#    case Seq(p, q) -> 
+    case Axis(ax) -> fun (p) {
+      for (c <-- xml)
+      where (axis(ax, p, c))
+        k(c)
+    }
+  }
+}
+
+var xp0 = Seq(Axis(Child), Axis(Child));
+
+var cf = path(Axis(Child), fun (x) { [x] });
+
+query { for (r <-- xml)
+        where (r.id == 4)
+        cf(r) }
