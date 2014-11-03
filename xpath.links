@@ -21,7 +21,7 @@ typename Axis = [| Self
                  | DescendantOrSelf
                  | Following
                  | FollowingSibling
-#                 | Rev:Axis # Can't do this easily because recursion is wild, even though in this case it should be very easy.
+                 | Rev:Axis
                  |];
 
 typename Path = [| Axis:Axis
@@ -32,15 +32,15 @@ typename Path = [| Axis:Axis
 
 typename XML = (id:Int,name:String,parent:Int,post:Int,pre:Int);
 
-fun axis(ax, s, t) {
+fun axis(ax) {
   switch (ax) {
-    case Self -> s.id == t.id
-    case Child -> s.id == t.parent
-    case Descendant -> s.pre < t.pre && t.post < s.post
-    case DescendantOrSelf -> s.pre <= t.pre && t.post <= s.post
-    case Following -> s.post < t.pre
-    case FollowingSibling -> s.post < t.pre && s.parent == t.parent
-#    case Rev(ax) -> axis(ax, t, s)
+    case Self -> fun (s, t) { s.id == t.id }
+    case Child -> fun (s, t) { s.id == t.parent }
+    case Descendant -> fun (s, t) { s.pre < t.pre && t.post < s.post }
+    case DescendantOrSelf -> fun (s, t) { s.pre <= t.pre && t.post <= s.post }
+    case Following -> fun (s, t) { s.post < t.pre }
+    case FollowingSibling -> fun (s, t) { s.post < t.pre && s.parent == t.parent }
+    case Rev(ax) -> var rev = axis(ax); fun (s, t) { rev(t, s) }
   }
 }
 
@@ -55,16 +55,21 @@ fun path(p, k) {
       fun (outer_context) {
           pq(outer_context)
       }
-    case Axis(ax) -> fun (p) {
-      for (c <-- xml)
-      where (axis(ax, p, c))
-        k(c)
-    }
+    case Axis(ax) ->
+      var axisPredicate = axis(ax);
+      fun (p) {
+        for (c <-- xml)
+        where (axisPredicate(p, c))
+          k(c)
+      }
     case Name(s) -> fun (p) {
        if (p.name == s) k(p) else []
     }
   }
 }
+
+# This should be identity, except for leaves, I think...
+var crc = Seq(Axis(Child), Axis(Rev(Child)));
 
 var xp7 = Seq(Axis(Child), Seq(Axis(Child), Axis(Child)));
 
@@ -74,8 +79,8 @@ var xp0 = Seq(Axis(Child), Axis(Child));
 
 var cf = path(Axis(Child), fun (x) { [x] });
 
-var cf0 = path(gce, fun (x) {[x]});
+var cf0 = path(crc, fun (x) {[x]});
 
 query { for (r <-- xml)
-        where (r.parent == -1)
+        where (r.id == 2)
         cf0(r) }
