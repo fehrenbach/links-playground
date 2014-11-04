@@ -91,9 +91,13 @@ var xp3 = Seq(Axis(DescendantOrSelf),
                              Seq(Axis(Rev(Following)),
                                  Name("b"))))));
 
+var xpmin = Seq(Axis(DescendantOrSelf),
+              Filter(Seq(Axis(Child),
+                         Axis(Child))));
+
 var cf = path(Axis(Child), fun (x) {[x]});
 
-var cf0 = path(xp3, fun (x) {[x]});
+var cf0 = path(xpmin, fun (x) {[x]});
 
 
 query { for (r <-- xml)
@@ -115,3 +119,23 @@ query { for (r <-- xml)
 #                       xml as t1753
 # --                      , xml as t1746 -- this line is missing for some reason...
 #                 where t1746."pre" <= filterbranch."pre" and filterbranch."post" <= t1746."post" and t1753."post" < t1746."pre" and t1753."name" = 'b')
+
+#var xpmin = Seq(Axis(DescendantOrSelf),
+#              Filter(Seq(Axis(Child),
+#                         Axis(Child))));
+
+# //*[child::*/child::*]
+
+# select (result."id") as "id",(result."name") as "name",(result."parent") as "parent",(result."post") as "post",(result."pre") as "pre"
+#   from xml as root,
+#        xml as result,
+#        xml as t1746
+#  where root."id" = 0
+#    and root."pre" <= result."pre"
+#    and result."post" <= root."post"
+#    and t1746."id" = result."id"
+#    and exists (select 0 as dummy
+#                  from xml as t1753, -- t1753 is never used, and 1747 is never introduced!
+#                       xml as t1754
+#                 where t1746."id" = t1747."parent"
+#                   and t1747."id" = t1754."parent")
