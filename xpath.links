@@ -13,8 +13,6 @@ var xml = table ("xml") with
      pre : Int,
      post : Int) from db;
 
-#typename QueryBuilder = ((pre: Int, post: Int)) {}-> [(|a::(Any,Base))];
-
 typename Axis = [| Self
                  | Child
                  | Descendant
@@ -30,7 +28,7 @@ typename Path = [| Axis:Axis
                  | Filter:Path
                  |];
 
-typename XML = (id:Int,name:String,parent:Int,post:Int,pre:Int);
+typename Node = (id:Int,name:String,parent:Int,post:Int,pre:Int);
 
 fun axis(ax) {
   switch (ax) {
@@ -44,47 +42,39 @@ fun axis(ax) {
   }
 }
 
-#sig path : (Path, QueryBuilder) ~> QueryBuilder
-sig path : (Path, (XML) {}-> [XML]) ~> (XML) {}-> [XML]
-fun path(p, k) {
+sig path : (Path) ~> (Node, Node) -> Bool
+fun path(p: Path) {
   switch (p) {
     case Seq(p, q) ->
-      # Do the recursion outside to obtain a non-wild query function (note the {}-> type).
-      var pq = path(p, path(q, k)) : ((XML) {}-> [XML]);
-      # (Textually) substituting pq in the returned function for the right hand side does not work!
-      fun (outer_context) {
-          pq(outer_context)
+      var p = path(p);
+      var q = path(q);
+      fun (s, u) {
+        not(empty(for (t <-- xml)
+                  where (p(s, t) && q(t, u))
+                   [()]))
       }
-    case Axis(ax) ->
-      var axisPredicate = axis(ax);
-      fun (p) {
-        for (c <-- xml)
-        where (axisPredicate(p, c))
-          k(c)
-      }
-    case Name(s) -> fun (p) {
-       if (p.name == s) k(p) else []
-    }
-    case Filter(f) ->
-      var k_f = path(f, fun (x) {[x]});
-      fun (c) {
-        for (x <-- xml)
-        where (x.id == c.id && not(empty(k_f(x))))
-          k(c)
+    case Axis(ax) -> axis(ax)
+    case Name(name) -> fun (s, t) { s.id == t.id && s.name == name }
+    case Filter(p) ->
+      var p = path(p);
+      fun (s, t) {
+        s.id == t.id && not(empty(for (u <-- xml)
+                                  where (p(s, u))
+                                    [()]))
       }
   }
 }
 
-# This should be identity, except for leaves, I think...
-var crc = Seq(Axis(Child), Axis(Rev(Child)));
-
-var xp7 = Seq(Axis(Child), Seq(Axis(Child), Axis(Child)));
-
-var gce = Seq(Axis(Child), Seq(Axis(Child), Seq(Axis(Child), Name("e"))));
-
+# /*/*
 var xp0 = Seq(Axis(Child), Axis(Child));
+
+# //*/parent::*
 var xp1 = Seq(Axis(DescendantOrSelf), Axis(Rev(Child)));
+
+# //*[following-sibling::d]
 var xp2 = Seq(Axis(DescendantOrSelf), Filter(Seq(Axis(FollowingSibling), Name("d"))));
+
+# //f[ancestor::*/preceding::b]
 var xp3 = Seq(Axis(DescendantOrSelf),
               Seq(Name("f"),
                   Filter(Seq(Axis(Rev(DescendantOrSelf)),
@@ -95,47 +85,36 @@ var xpmin = Seq(Axis(DescendantOrSelf),
               Filter(Seq(Axis(Child),
                          Axis(Child))));
 
-var cf = path(Axis(Child), fun (x) {[x]});
+fun xpath(p) {
+  var p = path(p);
+  query {
+    for (root <-- xml,
+         s <-- xml)
+    where (root.parent == -1 && p(root, s))
+      [(id=s.id)]
+  }
+}
 
-var cf0 = path(xpmin, fun (x) {[x]});
+xpath(xp0)
 
+# xp0 in Links
+#
+# select (t1755."id") as "id"
+#   from xml as t1754,xml as t1755
+#  where ((t1752."parent") = (-(1))) -- t1752 is not bound, but t1754 is
+#    and (exists (select 0 as dummy
+#                   from xml as t1759
+#                  where ((t1752."id") = (t1759."parent"))
+#                    and ((t1759."id") = (t1755."parent"))))
 
-query { for (r <-- xml)
-        where (r.id == 0)
-         cf0(r) }
-
-
-# select (result."id") as "id",(result."name") as "name",(result."parent") as "parent",(result."post") as "post",(result."pre") as "pre"
-#   from xml as root,
-#        xml as result,
-#        xml as filterbranch
-#  where root."id" = 0
-#    and root."pre" <= result."pre"
-#    and result."post" <= root."post"
-#    and result."name" = 'f'
-#    and filterbranch."id" = result."id"
-#    and exists (select 0 as dummy
-#                  from xml as t1752,
-#                       xml as t1753
-# --                      , xml as t1746 -- this line is missing for some reason...
-#                 where t1746."pre" <= filterbranch."pre" and filterbranch."post" <= t1746."post" and t1753."post" < t1746."pre" and t1753."name" = 'b')
-
-#var xpmin = Seq(Axis(DescendantOrSelf),
-#              Filter(Seq(Axis(Child),
-#                         Axis(Child))));
-
-# //*[child::*/child::*]
-
-# select (result."id") as "id",(result."name") as "name",(result."parent") as "parent",(result."post") as "post",(result."pre") as "pre"
-#   from xml as root,
-#        xml as result,
-#        xml as t1746
-#  where root."id" = 0
-#    and root."pre" <= result."pre"
-#    and result."post" <= root."post"
-#    and t1746."id" = result."id"
-#    and exists (select 0 as dummy
-#                  from xml as t1753, -- t1753 is never used, and 1747 is never introduced!
-#                       xml as t1754
-#                 where t1746."id" = t1747."parent"
-#                   and t1747."id" = t1754."parent")
+# xp0 in F#
+#
+# SELECT [s].[ID]
+# FROM [dbo].[Data] AS [t0], [dbo].[Data] AS [s]
+# WHERE ([t0].[Parent] = @p0) AND ([t0].[Entry] = @p1) AND (EXISTS(
+#      SELECT NULL AS [EMPTY]
+#      FROM [dbo].[Data] AS [t2]
+#      WHERE ([t0].[Entry] = [t2].[Entry]) AND ([t0].[ID] =
+# [t2].[Parent]) AND ([t2].[Entry] = [s].[Entry]) AND ([t2].[ID] =
+# [s].[Parent])
+#      ))
