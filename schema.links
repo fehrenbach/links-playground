@@ -1,0 +1,32 @@
+## Debug Links using schema.links from the schema branch of the dbwiki svn repository
+
+var db = database "stefan";
+
+typename VersionNumber   = Int;
+typename Date            = String; # This is a date/time represented as a string
+typename Provenance      = Int; # ???
+typename Time            = Int;    # This is a Unix/Java/RFC 1479 time
+typename UserId          = Int;
+typename NodeId          = Int;
+
+typename Version =
+      (id         : VersionNumber, # key
+       name       : Date,
+       provenance : Provenance,
+       time       : Time,
+       uid        : UserId,
+       source     : String,
+       node       : NodeId);
+
+var versions = table ("TEST_version") with Version from db;
+
+query {
+ for (v <-- versions)
+ orderby (v.id)
+   [(id=v.id)]
+}
+
+#   select (t1635."id") as "id",
+#          (t1634."id") as "order_1"
+#     from TEST_version as t1635
+# order by order_1
